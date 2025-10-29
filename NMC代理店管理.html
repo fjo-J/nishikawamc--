@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>代理店管理ツール (UIデモ)</title>
+    <!-- Tailwind CSS CDN --><script src="https://cdn.tailwindcss.com"></script>
+    <!-- フォント (Inter) --><link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- アイコン (Heroicons) --><script src="https://unpkg.com/heroicons@2.1.3/24/outline/dist/heroicons.js"></script>
+    <style>
+        /* Noto Sans JPを優先しつつ、英数字はInterが当たるように設定 */
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+            background-color: #f8fafc; /* bg-slate-50 */
+        }
+        /* Tailwindのhiddenクラスは !important がないため、ここで定義 */
+        .hidden {
+            display: none;
+        }
+        /* 簡易アイコン表示用 (Tailwindのクラスを直接適用しているため不要な場合が多いですが念のため) */
+        .icon {
+            display: inline-block;
+            width: 1.25rem; /* w-5 */
+            height: 1.25rem; /* h-5 */
+            stroke-width: 2;
+        }
+    </style>
+</head>
+<body class="bg-slate-50">
+
+    <!-- ヘッダー --><header class="bg-white sticky top-0 z-10 border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+            <h1 class="text-2xl font-bold text-emerald-700">代理店管理システム</h1>
+            <div class="text-sm text-gray-600">
+                <span class="hidden sm:inline">ログイン中:</span> 田中 太郎
+            </div>
+        </div>
+    </header>
+
+    <!-- メインコンテンツ --><main class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+
+        <!-- ============================================= --><!-- 1. 代理店検索・一覧画面 (初期表示)             --><!-- ============================================= --><div id="list-view">
+            <!-- 検索・操作エリア --><div class="bg-white p-6 rounded-2xl shadow-xl mb-6">
+                <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+                    <!-- 検索フォーム --><div class="relative flex-grow">
+                        <input type="text" id="search-input" placeholder="代理店名、担当者名などで検索..." class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        <div class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                            <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                            </svg>
+                        </div>
+                    </div>
+                    <!-- 新規顧客追加ボタン --><button id="show-modal-btn-list" class="flex-shrink-0 bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-5 py-2 rounded-md font-semibold hover:opacity-90 transition-all duration-300 shadow-md hover:shadow-lg flex items-center justify-center gap-2">
+                        <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M18 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0ZM3 19.235v-.11a6.375 6.375 0 0 1 12.75 0v.109A12.318 12.318 0 0 1 9.374 21c-2.331 0-4.512-.645-6.374-1.766Z" />
+                        </svg>
+                        新規顧客追加
+                    </button>
+                </div>
+            </div>
+
+            <!-- 代理店一覧テーブル --><div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full min-w-max">
+                        <thead class="bg-slate-100 border-b border-gray-200">
+                            <tr>
+                                <th class="text-left px-6 py-3 text-sm font-semibold text-gray-600 uppercase tracking-wider">代理店名</th>
+                                <th class="text-left px-6 py-3 text-sm font-semibold text-gray-600 uppercase tracking-wider">契約種別</th>
+                                <th class="text-left px-6 py-3 text-sm font-semibold text-gray-600 uppercase tracking-wider">社内担当者</th>
+                                <th class="text-left px-6 py-3 text-sm font-semibold text-gray-600 uppercase tracking-wider">代理店連絡先</th>
+                                <th class="px-6 py-3"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="agency-table-body" class="divide-y divide-gray-200">
+                            <!-- JSでデータが挿入されます --></tbody>
+                    </table>
+                </div>
+                <div id="no-results" class="hidden text-center p-12 text-gray-500">
+                    検索結果がありません。
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================= --><!-- 2. 代理店詳細画面 (初期非表示)                 --><!-- ============================================= --><div id="detail-view" class="hidden">
+            <!-- 戻るボタン --><button id="back-to-list-btn" class="mb-4 text-emerald-600 hover:text-emerald-800 font-semibold flex items-center gap-1">
+                <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+                </svg>
+                代理店一覧に戻る
+            </button>
+
+            <!-- 代理店ヘッダー --><div class="bg-white p-6 rounded-2xl shadow-xl mb-6">
+                <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+                    <h2 id="detail-agency-name" class="text-3xl font-bold text-gray-900"></h2>
+                    <button class="bg-slate-100 text-slate-700 px-5 py-2 rounded-md font-semibold hover:bg-slate-200 transition duration-200 flex-shrink-0">
+                        情報を編集
+                    </button>
+                </div>
+            </div>
+
+            <!-- 代理店詳細情報 --><div class="bg-white p-6 rounded-2xl shadow-xl mb-6">
+                <h3 class="text-xl font-semibold text-gray-800 mb-6 border-b pb-2">代理店 詳細情報</h3>
+                
+                <!-- 注意事項 --><div id="detail-notes-section" class="mb-6 p-4 rounded-lg bg-amber-50 border border-amber-300">
+                    <div class="flex items-start">
+                        <div class="flex-shrink-0 text-amber-500">
+                            <svg class="w-6 h-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <h4 class="text-lg font-semibold text-amber-900">[!!!] 注意事項</h4>
+                            <div id="detail-notes" class="mt-2 text-sm text-amber-800 whitespace-pre-wrap">
+                                <!-- JSで挿入 --></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 詳細グリッド --><dl class="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
+                    <div class="col-span-1 border-b md:border-b-0 py-2">
+                        <dt class="text-sm font-medium text-slate-500">契約種別</dt>
+                        <dd id="detail-type" class="mt-1 text-lg font-semibold text-slate-900"></dd>
+                    </div>
+                    <div class="col-span-1 border-b md:border-b-0 py-2">
+                        <dt class="text-sm font-medium text-slate-500">代理店手数料</dt>
+                        <dd id="detail-fee" class="mt-1 text-lg font-semibold text-slate-900"></dd>
+                    </div>
+                    <div class="col-span-1 border-b md:border-b-0 py-2">
+                        <dt class="text-sm font-medium text-slate-500">契約開始日</dt>
+                        <dd id="detail-start-date" class="mt-1 text-lg font-semibold text-slate-900"></dd>
+                    </div>
+                    <div class="col-span-1 md:col-span-3 border-b md:border-b-0 py-2">
+                        <dt class="text-sm font-medium text-slate-500">契約内容</dt>
+                        <dd id="detail-content" class="mt-1 text-md text-slate-900 whitespace-pre-wrap"></dd>
+                    </div>
+                    <div class="col-span-1 md:col-span-3 border-b md:border-b-0 py-2">
+                        <dt class="text-sm font-medium text-slate-500">ポイント利用サービス / 商材</dt>
+                        <dd id="detail-products" class="mt-1 text-md text-slate-900 whitespace-pre-wrap"></dd>
+                    </div>
+                    <div class="col-span-1 border-b md:border-b-0 py-2">
+                        <dt class="text-sm font-medium text-slate-500">社内担当者名</dt>
+                        <dd id="detail-manager" class="mt-1 text-lg font-semibold text-slate-900"></dd>
+                    </div>
+                    <div class="col-span-1 md:col-span-2 py-2">
+                        <dt class="text-sm font-medium text-slate-500">代理店連絡先 (担当: <span id="detail-contact-person" class="font-semibold"></span>)</dt>
+                        <dd id="detail-contact-info" class="mt-1 text-md text-slate-900"></dd>
+                    </div>
+                </dl>
+            </div>
+
+            <!-- 関連顧客情報 --><div class="bg-white p-6 rounded-2xl shadow-xl">
+                <div class="flex flex-col md:flex-row md:justify-between md:items-center mb-6 border-b pb-2">
+                    <h3 class="text-xl font-semibold text-gray-800">関連顧客情報</h3>
+                    <button id="show-modal-btn-detail" class="mt-2 md:mt-0 flex-shrink-0 bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-5 py-2 rounded-md font-semibold hover:opacity-90 transition-all duration-300 shadow-md hover:shadow-lg flex items-center justify-center gap-2">
+                        <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M18 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0ZM3 19.235v-.11a6.375 6.375 0 0 1 12.75 0v.109A12.318 12.318 0 0 1 9.374 21c-2.331 0-4.512-.645-6.374-1.766Z" />
+                        </svg>
+                        この代理店の顧客を追加
+                    </button>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="w-full min-w-max">
+                        <thead class="bg-slate-100 border-b border-gray-200">
+                            <tr>
+                                <th class="text-left px-6 py-3 text-sm font-semibold text-gray-600 uppercase tracking-wider">顧客企業名</th>
+                                <th class="text-left px-6 py-3 text-sm font-semibold text-gray-600 uppercase tracking-wider">導入研修</th>
+                                <th class="text-left px-6 py-3 text-sm font-semibold text-gray-600 uppercase tracking-wider">助成金状況</th>
+                                <th class="text-left px-6 py-3 text-sm font-semibold text-gray-600 uppercase tracking-wider">最終対応日</th>
+                            </tr>
+                        </thead>
+                        <tbody id="customer-table-body" class="divide-y divide-gray-200">
+                            <!-- JSで挿入 --></tbody>
+                    </table>
+                    <div id="no-customers" class="hidden text-center p-12 text-gray-500">
+                        関連する顧客情報はありません。
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- ============================================= --><!-- 3. 新規顧客追加モーダル (初期非表示)            --><!-- ============================================= --><div id="customer-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <form id="customer-form">
+                <!-- モーダルヘッダー --><div class="flex justify-between items-center p-5 border-b bg-slate-50 rounded-t-xl">
+                    <h3 class="text-xl font-semibold text-gray-900">新規顧客の追加</h3>
+                    <button type="button" class="close-modal-btn text-gray-400 hover:text-gray-600">
+                        <svg class="w-6 h-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+                
+                <!-- モーダルボディ (フォーム) --><div class="p-6 space-y-4 bg-white">
+                    <div>
+                        <label for="modal-agency-name" class="block text-sm font-medium text-gray-700 mb-1">関連代理店</label>
+                        <!--
+                            本来はプルダウン(select)で全代理店を選択できるようにすべきですが、
+                            デモのため、詳細画面から来た場合は自動入力されるリードオンリーのinputにします。
+                        --><input type="text" id="modal-agency-name" name="agency-name" class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100" readonly>
+                        <input type="hidden" id="modal-agency-id" name="agency-id">
+                        <p id="modal-agency-select-note" class="hidden text-sm text-gray-500 mt-1">※一覧画面から追加する場合、ここで代理店を検索・選択します。</p>
+                    </div>
+
+                    <div>
+                        <label for="modal-customer-name" class="block text-sm font-medium text-gray-700 mb-1">顧客企業名 <span class="text-red-500">*</span></label>
+                        <input type="text" id="modal-customer-name" name="customer-name" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" required>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="modal-customer-contact" class="block text-sm font-medium text-gray-700 mb-1">顧客担当者名</label>
+                            <input type="text" id="modal-customer-contact" name="customer-contact" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        </div>
+                        <div>
+                            <label for="modal-customer-email" class="block text-sm font-medium text-gray-700 mb-1">連絡先 (Email)</label>
+                            <input type="email" id="modal-customer-email" name="customer-email" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label for="modal-product" class="block text-sm font-medium text-gray-700 mb-1">導入研修 / 商材</label>
+                        <input type="text" id="modal-product" name="product" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    </div>
+
+                    <div>
+                        <label for="modal-status" class="block text-sm font-medium text-gray-700 mb-1">助成金申請状況</label>
+                        <select id="modal-status" name="status" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
+                            <option value="未申請">未申請</option>
+                            <option value="申請中">申請中</option>
+                            <option value="採択済">採択済</option>
+                            <option value="不採択">不採択</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="modal-memo" class="block text-sm font-medium text-gray-700 mb-1">その他メモ</label>
+                        <textarea id="modal-memo" name="memo" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"></textarea>
+                    </div>
+                </div>
+
+                <!-- モーダルフッター --><div class="flex items-center justify-end p-5 border-t bg-slate-50 space-x-3 rounded-b-xl">
+                    <button type="button" class="close-modal-btn bg-white text-slate-700 px-5 py-2 rounded-md border border-gray-300 hover:bg-gray-50 transition">
+                        キャンセル
+                    </button>
+                    <button type="submit" class="bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-5 py-2 rounded-md font-semibold hover:opacity-90 transition-all">
+                        登 録
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- JavaScript --><script>
+        // --- ダミーデータ -------------------------------------------------
+
+        const agencies = [
+            {
+                id: 1,
+                name: "株式会社A",
+                type: "通常契約",
+                fee: "売上の25% （※特別条件あり）",
+                startDate: "2024年4月1日",
+                content: "・リスキリング研修の紹介・取次\n・助成金申請サポート（一次対応のみ）",
+                products: "・DX基礎研修パック\n・管理職向けリーダーシップ研修（助成金B対象）",
+                manager: "佐藤 恵子",
+                contactPerson: "山田 様",
+                contactInfo: "Email: yamada@a-corp.co.jp\nPhone: 03-1234-5678",
+                notes: "・毎月25日までに活動報告書の提出必須。\n・助成金B対象研修は、必ず事前に社内担当（佐藤）に確認すること。\n・手数料の支払いは翌々月10日。"
+            },
+            {
+                id: 2,
+                name: "Bコンサルティング",
+                type: "特別契約",
+                fee: "売上の15% + 固定費5万円/月",
+                startDate: "2023年1月15日",
+                content: "・研修の共同開発\n・大口顧客への共同営業",
+                products: "・全研修商材（助成金A, B, C対象）",
+                manager: "鈴木 健司",
+                contactPerson: "伊藤 様",
+                contactInfo: "Email: ito@b-consul.com",
+                notes: "・四半期ごとに戦略会議を実施。\n・固定費は月末締め翌月末払い。"
+            },
+            {
+                id: 3,
+                name: "合同会社C（シー）",
+                type: "紹介契約",
+                fee: "成約につき一律5万円",
+                startDate: "2024年8月1日",
+                content: "・見込み顧客のトスアップのみ",
+                products: "・DX基礎研修パック",
+                manager: "高橋 守",
+                contactPerson: "中村 様",
+                contactInfo: "Phone: 090-XXXX-YYYY",
+                notes: "・紹介時に所定のフォームでの連絡必須。\n・契約は1年更新。"
+            },
+            {
+                id: 4,
+                name: "D＆パートナーズ法律事務所",
+                type: "提携（士業）",
+                fee: "紹介料なし（相互送客）",
+                startDate: "2023年5月20日",
+                content: "・助成金申請の法務サポート\n・クライアントへの研修紹介",
+                products: "・管理職向けコンプライアンス研修",
+                manager: "佐藤 恵子",
+                contactPerson: "渡辺 先生",
+                contactInfo: "Email: watanabe@d-partners.law",
+                notes: "・助成金関連の法改正情報を定期共有。"
+            }
+        ];
+
+        const customers = [
+            { id: 101, agencyId: 1, name: "株式会社X", product: "DX基礎研修パック", status: "申請中", lastContact: "2025/10/20" },
+            { id: 102, agencyId: 1, name: "Y工業株式会社", product: "管理職向け研修", status: "採択済", lastContact: "2025/10/15" },
+            { id: 103, agencyId: 2, name: "Zホールディングス", product: "全社DX研修（共同開発）", status: "申請中", lastContact: "2025/10/22" },
+            { id: 104, agencyId: 3, name: "スタートアップG社", product: "DX基礎研修パック", status: "未申請", lastContact: "2025/10/18" },
+            { id: 105, agencyId: 1, name: "株式会社 ABCDE", product: "DX基礎研修パック", status: "不採択", lastContact: "2025/09/30" }
+        ];
+
+        // --- DOM要素 ----------------------------------------------------
+
+        const listView = document.getElementById('list-view');
+        const detailView = document.getElementById('detail-view');
+        const customerModal = document.getElementById('customer-modal');
+        
+        const agencyTableBody = document.getElementById('agency-table-body');
+        const searchInput = document.getElementById('search-input');
+        const noResults = document.getElementById('no-results');
+
+        const backToListBtn = document.getElementById('back-to-list-btn');
+        
+        const showModalBtnList = document.getElementById('show-modal-btn-list');
+        const showModalBtnDetail = document.getElementById('show-modal-btn-detail');
+        const closeModalBtns = document.querySelectorAll('.close-modal-btn');
+        const customerForm = document.getElementById('customer-form');
+
+        // --- 関数 -------------------------------------------------------
+
+        /**
+         * 代理店一覧を描画する
+         * @param {Array} data - 表示する代理店のデータ配列
+         */
+        function renderAgencyList(data) {
+            agencyTableBody.innerHTML = '';
+            if (data.length === 0) {
+                noResults.classList.remove('hidden');
+                return;
+            }
+            noResults.classList.add('hidden');
+
+            data.forEach(agency => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50 cursor-pointer';
+                // クリックで行けるように data-id を設定
+                tr.dataset.id = agency.id; 
+                
+                tr.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-md font-semibold text-gray-900">${agency.name}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full ${agency.type === '特別契約' ? 'bg-lime-100 text-lime-800' : 'bg-emerald-100 text-emerald-800'}">
+                            ${agency.type}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-md text-gray-700">${agency.manager}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-md text-gray-700">${agency.contactInfo.split('\n')[0]}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <span class="text-emerald-600 hover:text-emerald-900 font-medium">詳細</span>
+                    </td>
+                `;
+                // 行クリックで詳細表示
+                tr.addEventListener('click', () => showDetailView(agency.id));
+                agencyTableBody.appendChild(tr);
+            });
+        }
+
+        /**
+         * 関連顧客一覧を描画する
+         * @param {number} agencyId - 代理店ID
+         */
+        function renderCustomerList(agencyId) {
+            const customerTableBody = document.getElementById('customer-table-body');
+            const noCustomers = document.getElementById('no-customers');
+            
+            const relatedCustomers = customers.filter(c => c.agencyId === agencyId);
+            
+            customerTableBody.innerHTML = '';
+            if (relatedCustomers.length === 0) {
+                noCustomers.classList.remove('hidden');
+                return;
+            }
+            noCustomers.classList.add('hidden');
+
+            relatedCustomers.forEach(customer => {
+                let statusColor = '';
+                switch (customer.status) {
+                    case '申請中': statusColor = 'bg-lime-100 text-lime-800'; break;
+                    case '採択済': statusColor = 'bg-green-100 text-green-800'; break;
+                    case '不採択': statusColor = 'bg-red-100 text-red-800'; break; // 注意喚起のため赤系維持
+                    default: statusColor = 'bg-slate-100 text-slate-800';
+                }
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-md font-semibold text-gray-900">${customer.name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-md text-gray-700">${customer.product}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full ${statusColor}">
+                            ${customer.status}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-md text-gray-700">${customer.lastContact}</td>
+                `;
+                customerTableBody.appendChild(tr);
+            });
+        }
+
+        /**
+         * 詳細画面を表示する
+         * @param {number} agencyId - 代理店ID
+         */
+        function showDetailView(agencyId) {
+            const agency = agencies.find(a => a.id === agencyId);
+            if (!agency) return;
+
+            // データを詳細ビューに埋め込む
+            document.getElementById('detail-agency-name').textContent = agency.name;
+            document.getElementById('detail-notes').textContent = agency.notes;
+            document.getElementById('detail-type').textContent = agency.type;
+            document.getElementById('detail-fee').textContent = agency.fee;
+            document.getElementById('detail-start-date').textContent = agency.startDate;
+            document.getElementById('detail-content').textContent = agency.content;
+            document.getElementById('detail-products').textContent = agency.products;
+            document.getElementById('detail-manager').textContent = agency.manager;
+            document.getElementById('detail-contact-person').textContent = agency.contactPerson;
+            document.getElementById('detail-contact-info').textContent = agency.contactInfo;
+
+            // 注意事項セクションの表示制御
+            const notesSection = document.getElementById('detail-notes-section');
+            if (agency.notes && agency.notes.trim() !== '') {
+                notesSection.classList.remove('hidden');
+            } else {
+                notesSection.classList.add('hidden');
+            }
+
+            // 関連顧客リストを描画
+            renderCustomerList(agency.id);
+
+            // 詳細画面の「顧客追加」ボタンに代理店情報をセット
+            showModalBtnDetail.dataset.agencyId = agency.id;
+            showModalBtnDetail.dataset.agencyName = agency.name;
+
+            // 画面切り替え
+            listView.classList.add('hidden');
+            detailView.classList.remove('hidden');
+            window.scrollTo(0, 0); // 画面トップにスクロール
+        }
+
+        /**
+         * 一覧画面を表示する
+         */
+        function showListView() {
+            detailView.classList.add('hidden');
+            listView.classList.remove('hidden');
+        }
+
+        /**
+         * 検索処理
+         */
+        function handleSearch() {
+            const query = searchInput.value.toLowerCase().trim();
+            const filtered = agencies.filter(agency => 
+                agency.name.toLowerCase().includes(query) ||
+                agency.manager.toLowerCase().includes(query)
+            );
+            renderAgencyList(filtered);
+        }
+
+        /**
+         * 顧客追加モーダルを表示する
+         * @param {string|null} agencyId - 代理店ID (オプション)
+         * @param {string|null} agencyName - 代理店名 (オプション)
+         */
+        function showModal(agencyId = null, agencyName = null) {
+            customerForm.reset(); // フォームをリセット
+            
+            const modalAgencyNameInput = document.getElementById('modal-agency-name');
+            const modalAgencyIdInput = document.getElementById('modal-agency-id');
+            const agencySelectNote = document.getElementById('modal-agency-select-note');
+
+            if (agencyId && agencyName) {
+                // 詳細画面から開いた場合
+                modalAgencyNameInput.value = agencyName;
+                modalAgencyIdInput.value = agencyId;
+                modalAgencyNameInput.readOnly = true;
+                modalAgencyNameInput.classList.add('bg-gray-100');
+                agencySelectNote.classList.add('hidden');
+            } else {
+                // 一覧画面から開いた場合
+                modalAgencyNameInput.value = "（代理店を選択してください）"; // 本来はSelect
+                modalAgencyIdInput.value = "";
+                modalAgencyNameInput.readOnly = true; // デモのため
+                modalAgencyNameInput.classList.remove('bg-gray-100');
+                agencySelectNote.classList.remove('hidden');
+            }
+            
+            customerModal.classList.remove('hidden');
+        }
+
+        /**
+         * モーダルを非表示にする
+         */
+        function hideModal() {
+            customerModal.classList.add('hidden');
+        }
+
+        // --- イベントリスナー -----------------------------------------------
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // 初期表示
+            renderAgencyList(agencies);
+
+            // 検索
+            searchInput.addEventListener('keyup', handleSearch);
+
+            // 戻るボタン
+            backToListBtn.addEventListener('click', showListView);
+
+            // モーダル表示ボタン（一覧）
+            showModalBtnList.addEventListener('click', () => showModal());
+
+            // モーダル表示ボタン（詳細）
+            showModalBtnDetail.addEventListener('click', (e) => {
+                const { agencyId, agencyName } = e.currentTarget.dataset;
+                showModal(agencyId, agencyName);
+            });
+
+            // モーダル非表示ボタン
+            closeModalBtns.forEach(btn => {
+                btn.addEventListener('click', hideModal);
+            });
+
+            // モーダル外クリックで非表示
+            customerModal.addEventListener('click', (e) => {
+                if (e.target === customerModal) {
+                    hideModal();
+                }
+            });
+
+            // フォーム送信（デモ）
+            customerForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                // 本来はここでデータを取得し、DBに保存する処理
+                const formData = new FormData(customerForm);
+                console.log("--- 顧客情報登録（デモ） ---");
+                for (let [key, value] of formData.entries()) {
+                    console.log(`${key}: ${value}`);
+                }
+                // (ダミーデータのcustomers配列に実際に追加することも可能)
+                hideModal();
+            });
+        });
+
+    </script>
+</body>
+</html>
+
